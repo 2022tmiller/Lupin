@@ -1,6 +1,8 @@
+
 plugins {
     id "java"
     id "edu.wpi.first.GradleRIO" version "2022.4.1"
+    id "maven-publish"
 }
 
 sourceCompatibility = JavaVersion.VERSION_11
@@ -43,7 +45,7 @@ def deployArtifact = deploy.targets.roborio.artifacts.frcJava
 wpi.java.debugJni = false
 
 // Set this to true to enable desktop support.
-def includeDesktopSupport = true
+def includeDesktopSupport = false
 
 // Defining my dependencies. In this case, WPILib (+ friends), and vendor libraries.
 // Also defines JUnit 4.
@@ -91,3 +93,18 @@ jar {
 deployArtifact.jarTask = jar
 wpi.java.configureExecutableTasks(jar)
 wpi.java.configureTestTasks(test)
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            groupId = "com.nashobarobotics.lupin"
+            artifactId = "lupin"
+            version = "0.1"
+        }
+    }
+
+    repositories {
+        mavenLocal()
+    }
+}

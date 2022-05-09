@@ -1,8 +1,8 @@
-package com.nashobarobotics.lupine.web;
+package com.nashobarobotics.lupin.web;
 
 import java.io.IOException;
 
-import com.nashobarobotics.lupine.Logger;
+import com.nashobarobotics.lupin.Logger;
 
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;

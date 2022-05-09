@@ -1,6 +1,6 @@
-package com.nashobarobotics.lupine.web;
+package com.nashobarobotics.lupin.web;
 
-import com.nashobarobotics.lupine.Logger;
+import com.nashobarobotics.lupin.Logger;
 
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.websocket.server.WebSocketHandler;
