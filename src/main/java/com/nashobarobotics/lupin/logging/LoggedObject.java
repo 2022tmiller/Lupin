@@ -7,8 +7,6 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import com.nashobarobotics.lupin.Logger;
-
 public class LoggedObject {
     Set<LoggedField> fields;
     Set<LoggedMethod> methods;
@@ -16,12 +14,10 @@ public class LoggedObject {
 
     Object o;
 
-    public LoggedObject(Path p, Object o) {
-        Logger.info("before fields");
-        Set<Field> annotatedFields = getAllLoggableFields(o.getClass());
-        Logger.info("before methods");
-        Set<Method> annotatedMethods = getAllLoggableMethods(o.getClass());
-        Logger.info("before field stream");
+    public LoggedObject(Path p, Class<?> cls) {
+        Set<Field> annotatedFields = getAllLoggableFields(cls);
+        Set<Method> annotatedMethods = getAllLoggableMethods(cls);
+
         fields = annotatedFields.stream().map(f -> {
             Logged annotation = f.getAnnotation(Logged.class);
             if(annotation.name().length() > 0) {
@@ -30,9 +26,8 @@ public class LoggedObject {
                 return new LoggedField(f.getName(), p, f);
             }
         }).collect(Collectors.toSet());
-        Logger.info("before method stream");
+
         methods = annotatedMethods.stream().map(m -> {
-            Logger.info("Method: " + m.getName());
             Logged annotation = m.getAnnotation(Logged.class);
             if(annotation.name().length() > 0) {
                 return new LoggedMethod(annotation.name(), p, m);
@@ -40,7 +35,6 @@ public class LoggedObject {
                 return new LoggedMethod(m.getName(), p, m);
             }
         }).collect(Collectors.toSet());
-        this.o = o;
     }
 
     public void setObject(Object o) {
@@ -57,26 +51,34 @@ public class LoggedObject {
     }
 
     public void log() {
-        for(LoggedField f: fields) {
-            f.log();
-        }
-        for(LoggedMethod m: methods) {
-            m.log();
+        if(o != null) {
+            for(LoggedField f: fields) {
+                f.log(o);
+            }
+            for(LoggedMethod m: methods) {
+                m.log(o);
+            }
         }
     }
 
-    private class LoggedElement {
+    private static class LoggedElement {
         public Path path;
         public DataType type;
         public LoggedObject innerLo;
 
         public LoggedElement(String name, Path p, Class<?> cls) {
             this.path = p.append(name);
-            if(cls.equals(Double.class) || cls.equals(double.class)) {
+            if(Number.class.isAssignableFrom(cls)
+            || cls.equals(double.class)  || cls.equals(float.class)
+            || cls.equals(int.class) || cls.equals(long.class)
+            || cls.equals(short.class) || cls.equals(byte.class)
+            ) {
                 type = DataType.DOUBLE;
+            } else if(cls.equals(String.class)) {
+                type = DataType.STRING;
             } else {
                 type = DataType.OBJECT;
-                innerLo = new LoggedObject(path, null);
+                innerLo = new LoggedObject(path, cls);
             }
         }
 
@@ -91,7 +93,13 @@ public class LoggedObject {
         public void log(Object result) {
             switch(this.type) {
                 case DOUBLE:
-                    LogManager.logDouble(path, (Double)result);
+                    LogManager.logDouble(path, ((Number)result).doubleValue());
+                    break;
+                case STRING:
+                    LogManager.logString(path, (String)result);
+                    break;
+                case BOOLEAN:
+                    LogManager.logBoolean(path, (Boolean)result);
                     break;
                 case OBJECT:
                     innerLo.setObject(result);
@@ -101,7 +109,7 @@ public class LoggedObject {
         }
     }
 
-    private class LoggedField extends LoggedElement {
+    private static class LoggedField extends LoggedElement {
         public Field field;
 
         public LoggedField(String name, Path p, Field field) {
@@ -109,17 +117,16 @@ public class LoggedObject {
             this.field = field;
         }
 
-        public void log() {
+        public void log(Object o) {
             try {
                 Object result = field.get(o);
                 super.log(result);
             } catch(IllegalAccessException e) {
-                Logger.error("Error while logging: " + e.getMessage(), e);
             }
         }
     }
 
-    private class LoggedMethod extends LoggedElement {
+    private static class LoggedMethod extends LoggedElement {
         public Method method;
 
         public LoggedMethod(String name, Path p, Method method) {
@@ -127,45 +134,31 @@ public class LoggedObject {
             this.method = method;
         }
 
-        public void log() {
+        public void log(Object o) {
             try {
                 Object result = method.invoke(o);
+                super.log(result);
             } catch(IllegalAccessException  | InvocationTargetException e) {
-                Logger.error("Error while logging: " + e.getMessage(), e);
             }
         }
     }
 
-    private static <T> Set<Field> getAllLoggableFields(Class<? super T> cls) {
+    private static Set<Field> getAllLoggableFields(Class<?> cls) {
         Set<Field> fields = new HashSet<>();
-        while(true) {
-            for(Field f: cls.getDeclaredFields()) {
-                Logger.info("Field: " + f.getName());
-                f.setAccessible(true);
-                Logger.info("annotation?");
-                if(f.isAnnotationPresent(Logged.class)) {
-                    fields.add(f);
-                }
+        for(Field f: cls.getFields()) {
+            if(f.isAnnotationPresent(Logged.class)) {
+                fields.add(f);
             }
-            cls = cls.getSuperclass();
-            if(cls == null) { break; }
         }
         return fields;
     }
     
-    private static <T> Set<Method> getAllLoggableMethods(Class<? super T> cls) {
+    private static Set<Method> getAllLoggableMethods(Class<?> cls) {
         Set<Method> methods = new HashSet<>();
-        while(true) {
-            for(Method m: cls.getDeclaredMethods()) {
-                Logger.info("Method: " + m.getName());
-                m.setAccessible(true);
-                Logger.info("annotation?");
-                if(m.isAnnotationPresent(Logged.class)) {
-                    methods.add(m);
-                }
+        for(Method m: cls.getMethods()) {
+            if(m.isAnnotationPresent(Logged.class)) {
+                methods.add(m);
             }
-            cls = cls.getSuperclass();
-            if(cls == null) { break; }
         }
         return methods;
     }

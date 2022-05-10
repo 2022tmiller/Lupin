@@ -1,11 +1,7 @@
 package com.nashobarobotics.lupin.logging;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -32,8 +28,20 @@ public class LogManager {
         }
 
         public void append(double x) {
-            if(type == DataType.BOOLEAN) {
+            if(type == DataType.DOUBLE) {
                 log.appendDouble(entry, x, 0);
+            }
+        }
+
+        public void append(String s) {
+            if(type == DataType.STRING) {
+                log.appendString(entry, s, 0);
+            }
+        }
+
+        public void append(boolean b) {
+            if(type == DataType.BOOLEAN) {
+                log.appendBoolean(entry, b, 0);
             }
         }
     }
@@ -62,6 +70,11 @@ public class LogManager {
         logEntries.put(p, new DataLogEntry(DataLogManager.getLog(), type, p));
         ntEntries.put(p, path2table(p));
     }
+
+    public static void register(Path p, DataType type, DataLog log) {
+        logEntries.put(p, new DataLogEntry(log, type, p));
+        ntEntries.put(p, path2table(p));
+    }
     
     public static void logDouble(Path p, double x) {
         if(logDataLog) {
@@ -71,13 +84,52 @@ public class LogManager {
             ntEntries.get(p).setDouble(x);
         }
         if(logConsole) {
-            Logger.debug(p.toString() + ": " + x);
+            Logger.info(p.toString() + ": " + x);
+        }
+        if(logWeb) {
+            // TODO log web
+        }
+    }
+
+    public static void logString(Path p, String s) {
+        if(logDataLog) {
+            logEntries.get(p).append(s);
+        }
+        if(logNT) {
+            ntEntries.get(p).setString(s);
+        }
+        if(logConsole) {
+            Logger.info(p.toString() + ": " + s);
+        }
+        if(logWeb) {
+            // TODO log web
+        }
+    }
+
+    public static void logBoolean(Path p, boolean b) {
+        if(logDataLog) {
+            logEntries.get(p).append(b);
+        }
+        if(logNT) {
+            ntEntries.get(p).setBoolean(b);
+        }
+        if(logConsole) {
+            Logger.info(p.toString() + ": " + b);
+        }
+        if(logWeb) {
+            // TODO log web
         }
     }
 
     public static void registerObject(Path p, Object o) {
-        LoggedObject lo = new LoggedObject(p, o);
+        LoggedObject lo = new LoggedObject(p, o.getClass());
+        lo.setObject(o);
         loggedObjects.add(lo);
+        lo.register();
+    }
+
+    public static void registerObject(Object o) {
+        registerObject(new Path(o.getClass().getSimpleName()), o);
     }
 
     public static void logObjects() {
